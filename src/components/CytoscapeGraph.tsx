@@ -1,34 +1,45 @@
 "use client"
 
-import {useEffect, useRef} from "react"
+import {useEffect, useRef, useState} from "react"
 import * as d3 from "d3"
-const D3Graph: React.FC = () => {
-    const containerRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
+import axios from "axios"
+import {useRouter} from "next/navigation"
 
+interface NodeData {
+  id: string
+  label: string
+  link: string[]
+}
+const D3Graph: React.FC = () => {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [nodes, setNodes] = useState<NodeData[]>([])
+  const router = useRouter()
+  useEffect(() => {
+    const fetchNodes = async () => {
+      try {
+        const response = await axios.get<NodeData[]>(
+          "http://localhost:3001/api/documents"
+        )
+        setNodes(response.data)
+      } catch (error) {
+        console.error("Failed to fetch nodes", error)
+      }
+    }
+
+    fetchNodes()
+  }, [])
+
+  useEffect(() => {
+    if (nodes.length === 0) return
     const width = containerRef.current?.offsetWidth || 600
     const height = containerRef.current?.offsetHeight || 400
 
-    const nodes = [
-      {id: "a", label: "Gokul"},
-      {id: "b", label: "Node B"},
-      {id: "c", label: "Node C"},
-      {id: "d", label: "Node D"},
-      {id: "e", label: "Node e"},
-      {id: "f", label: "Node f"},
-      {id: "g", label: "Node g"},
-    ]
-
-    const links = [
-      {source: "a", target: "b"},
-      {source: "b", target: "c"},
-      {source: "c", target: "d"},
-      {source: "c", target: "f"},
-      {source: "f", target: "g"},
-      {source: "g", target: "e"},
-      {source: "g", target: "f"},
-      {source: "g", target: "a"},
-    ]
+    const links = nodes.flatMap((node) =>
+      node.link.map((targetId) => ({
+        source: node.id,
+        target: targetId,
+      }))
+    )
 
     const svg = d3
       .select("#d3")
@@ -51,10 +62,10 @@ const D3Graph: React.FC = () => {
         "link",
         d3
           .forceLink(links)
-          .id((d) => d.id)
+          .id((d: any) => d.id)
           .distance(100)
       )
-      .force("charge", d3.forceManyBody().strength(-200))
+      .force("charge", d3.forceManyBody().strength(-100))
       .force("center", d3.forceCenter(width / 2, height / 2))
 
     const link = svg
@@ -78,6 +89,7 @@ const D3Graph: React.FC = () => {
       .call(drag(simulation))
       .on("mouseover", handleMouseOver)
       .on("mouseout", handleMouseOut)
+      .on("click", handleClick)
 
     const label = svg
       .append("g")
@@ -90,41 +102,41 @@ const D3Graph: React.FC = () => {
       .attr("dy", "1.5em")
       .attr("x", 12)
       .attr("fill", "#fff")
-      .text((d) => d.label)
+      .text((d: any) => d.label)
 
     simulation.on("tick", () => {
       link
-        .attr("x1", (d) => d.source.x)
-        .attr("y1", (d) => d.source.y)
-        .attr("x2", (d) => d.target.x)
-        .attr("y2", (d) => d.target.y)
+        .attr("x1", (d: any) => d.source.x)
+        .attr("y1", (d: any) => d.source.y)
+        .attr("x2", (d: any) => d.target.x)
+        .attr("y2", (d: any) => d.target.y)
 
-      node.attr("cx", (d) => d.x).attr("cy", (d) => d.y)
+      node.attr("cx", (d: any) => d.x).attr("cy", (d: any) => d.y)
 
-      label.attr("x", (d) => d.x).attr("y", (d) => d.y)
+      label.attr("x", (d: any) => d.x).attr("y", (d: any) => d.y)
     })
 
     function drag(simulation) {
       return d3
         .drag()
-        .on("start", (event, d) => {
+        .on("start", (event, d: any) => {
           if (!event.active) simulation.alphaTarget(0.3).restart()
           d.fx = d.x
           d.fy = d.y
         })
-        .on("drag", (event, d) => {
+        .on("drag", (event, d: any) => {
           d.fx = event.x
           d.fy = event.y
         })
-        .on("end", (event, d) => {
+        .on("end", (event, d: any) => {
           if (!event.active) simulation.alphaTarget(0)
           d.fx = null
           d.fy = null
         })
     }
 
-    function handleMouseOver(event, d) {
-      node.attr("fill", (n) => (n.id === d.id ? "#7356ef" : "#ccc"))
+    function handleMouseOver(event: any, d: any) {
+      node.attr("fill", (n: any) => (n.id === d.id ? "#7356ef" : "#ccc"))
 
       // __________________
       link.attr("stroke", (l) =>
@@ -162,10 +174,13 @@ const D3Graph: React.FC = () => {
       link.attr("stroke", "#999").attr("stroke-opacity", 0.6)
       label.attr("fill", "#fff").attr("opacity", 1)
     }
+    function handleClick(event: any, d: any) {
+      router.push(`/documents/${d.id}`)
+    }
     return () => {
       d3.select("#d3").selectAll("*").remove()
     }
-  }, [])
+  }, [nodes])
 
   return (
     <div
