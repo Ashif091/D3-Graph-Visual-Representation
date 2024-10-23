@@ -2,8 +2,8 @@
 
 import {useEffect, useRef, useState} from "react"
 import * as d3 from "d3"
-import axios from "axios"
 import {useRouter} from "next/navigation"
+import axios from "axios"
 
 interface NodeData {
   id: string
@@ -189,6 +189,6 @@ const D3Graph: React.FC = () => {
       className="w-[100%] h-[30rem] border border-gray-200"
     ></div>
   )
-}
+} 
 
 export default D3Graph
